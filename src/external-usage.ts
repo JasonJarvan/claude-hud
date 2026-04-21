@@ -2,6 +2,9 @@ import * as fs from 'node:fs';
 import type { HudConfig } from './config.js';
 import type { ExternalUsageSnapshot, UsageData } from './types.js';
 
+const MAX_EXTERNAL_USAGE_BYTES = 64 * 1024;
+const MAX_FUTURE_SKEW_MS = 60 * 1000;
+
 function parseUsagePercent(value: unknown): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return null;
@@ -42,6 +45,11 @@ export function getUsageFromExternalSnapshot(
   }
 
   try {
+    const stats = fs.statSync(snapshotPath);
+    if (!stats.isFile() || stats.size > MAX_EXTERNAL_USAGE_BYTES) {
+      return null;
+    }
+
     const raw = fs.readFileSync(snapshotPath, 'utf8');
     const parsed = JSON.parse(raw) as ExternalUsageSnapshot;
     const updatedAt = parseUpdatedAt(parsed.updated_at);
@@ -50,6 +58,9 @@ export function getUsageFromExternalSnapshot(
     }
 
     const freshnessMs = config.display.externalUsageFreshnessMs;
+    if (updatedAt - now > MAX_FUTURE_SKEW_MS) {
+      return null;
+    }
     if (now - updatedAt > freshnessMs) {
       return null;
     }

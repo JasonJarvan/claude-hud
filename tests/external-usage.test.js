@@ -84,6 +84,43 @@ test('getUsageFromExternalSnapshot rejects invalid schema data', async () => {
   }
 });
 
+test('getUsageFromExternalSnapshot rejects future-dated snapshots beyond clock skew tolerance', async () => {
+  const now = Date.UTC(2026, 3, 20, 12, 0, 0);
+  const { filePath, cleanup } = await withTempFile(JSON.stringify({
+    updated_at: new Date(now + 61_000).toISOString(),
+    five_hour: { used_percentage: 42, resets_at: '2026-04-20T15:00:00.000Z' },
+  }));
+
+  try {
+    const usage = getUsageFromExternalSnapshot(makeConfig(filePath), now);
+    assert.equal(usage, null);
+  } finally {
+    await cleanup();
+  }
+});
+
+test('getUsageFromExternalSnapshot rejects non-regular paths', async () => {
+  const dirPath = await mkdtemp(path.join(tmpdir(), 'claude-hud-external-usage-dir-'));
+
+  try {
+    const usage = getUsageFromExternalSnapshot(makeConfig(dirPath), Date.now());
+    assert.equal(usage, null);
+  } finally {
+    await rm(dirPath, { recursive: true, force: true });
+  }
+});
+
+test('getUsageFromExternalSnapshot rejects oversized snapshot files', async () => {
+  const { filePath, cleanup } = await withTempFile('x'.repeat(70_000));
+
+  try {
+    const usage = getUsageFromExternalSnapshot(makeConfig(filePath), Date.now());
+    assert.equal(usage, null);
+  } finally {
+    await cleanup();
+  }
+});
+
 test('getUsageFromExternalSnapshot returns null for invalid JSON', async () => {
   const { filePath, cleanup } = await withTempFile('{');
 
