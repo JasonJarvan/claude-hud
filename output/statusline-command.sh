@@ -35,21 +35,15 @@ used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // 0')
 used_int=${used_pct%.*}
 used_int=${used_int:-0}
 
-bar_filled=$(( used_int / 5 ))
-bar_empty=$(( 20 - bar_filled ))
-bar=""
-for ((i=0; i<bar_filled; i++)); do bar+="█"; done
-for ((i=0; i<bar_empty; i++)); do bar+="░"; done
-
 if [ "$used_int" -lt 50 ]; then
-  bar_color=$'\033[32m'   # green
+  ctx_color=$'\033[32m'   # green
 elif [ "$used_int" -lt 80 ]; then
-  bar_color=$'\033[33m'   # yellow
+  ctx_color=$'\033[33m'   # yellow
 else
-  bar_color=$'\033[31m'   # red
+  ctx_color=$'\033[31m'   # red
 fi
 
-context_bar="${bar_color}${bar}${reset} ${used_int}%"
+context_num="${ctx_color}${used_int}%${reset}"
 
 # --- Line 2: Cost + Time remaining (cached, refreshes every 5 min) ---
 
@@ -109,4 +103,4 @@ else
 fi
 
 # --- Output ---
-echo "📁 ${display_dir}|${git_info}|${purple}${model}${reset}|${context_bar}|${gold}${cost_str}${reset}|${time_str}"
+echo "${context_num}|${purple}${model}${reset}|📁 ${display_dir}|${git_info}|${gold}${cost_str}${reset}|${time_str}"
